@@ -18,7 +18,7 @@ library(lubridate)
 library(dplyr)
 df = read.table('liglab2.log', sep=' ' , na.strings = ""  , header=F , fill = TRUE  )
 df = df %>% select(V1, V2, V9) 
-df
+
 ```
 
 
@@ -56,7 +56,7 @@ convertdate = function(date)
 
 
 df$date = as.numeric(sapply(df$date , convertdate))
-df
+
 
 ```
 
