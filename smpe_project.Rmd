@@ -1,0 +1,133 @@
+---
+title: "smpe_Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Hello R I don't have a girlfriend so you are my girlfriend
+
+### we will read our data to a data frame 
+
+```{r}
+library(lubridate)
+library(dplyr)
+df = read.table('liglab2.log', sep=' ' , na.strings = ""  , header=F , fill = TRUE  )
+df = df %>% select(V1, V2, V9) 
+df
+```
+
+
+### Clean my dataframe droping all rows with at least one NA cell 
+
+
+```{r}
+
+library(tidyr)
+line_NA  = apply(df , 1 , function(x) any(is.na(x)))
+#df[line_NA , ]
+df = df %>% drop_na()
+
+```
+
+
+### Changing column names
+
+```{r}
+colnames(df)=c('date' ,'size' , 'time' )
+
+```
+
+### Convert time column to float
+```{r}
+convertTime = function(time)
+  gsub("[^0-9.]", "", time)
+
+df$time = as.numeric(sapply(df$time , convertTime))
+
+
+
+convertdate = function(date)
+  gsub("[^0-9.]", "", date)
+
+
+df$date = as.numeric(sapply(df$date , convertdate))
+df
+
+```
+
+
+### this is the time interms of the size of a msg
+```{r}
+plot(df$size , df$time)
+```
+
+
+
+
+
+
+
+```{r}
+library(ggplot2)
+
+ggplot(df, aes(x=size, y=time)) + 
+    geom_point() +
+    theme_bw() 
+```
+
+
+
+
+
+```{r}
+
+ plot(df$size , df$time , xlim=c(0,1500))
+
+```
+
+```{r}
+ plot(df$size , df$time , xlim=c(1000,1500))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
