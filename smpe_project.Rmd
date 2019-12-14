@@ -89,7 +89,7 @@ ggplot(df, aes(x=size, y=time)) +
 ```
 
 ```{r}
- plot(df$size , df$time , xlim=c(1000,1500))
+ plot(df$size , df$time , xlim=c(1000,1600))
 
 ```
 
