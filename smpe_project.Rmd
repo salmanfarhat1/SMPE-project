@@ -1,5 +1,5 @@
 ---
-title: "smpe_Project"
+title: "Latency and capacity estimation for a network connection from asymmetric measurements"
 output:
   pdf_document: default
   html_document: default
@@ -9,127 +9,251 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Hello R I don't have a girlfriend so you are my girlfriend
 
-### we will read our data to a data frame 
-
+#### Libraries used
 ```{r}
-library(lubridate)
-library(dplyr)
+ suppressMessages(library(stats  , warn.conflicts = FALSE))
+ suppressMessages(library(SparseM  , warn.conflicts = FALSE))
+ suppressMessages(library(quantreg , warn.conflicts = FALSE ))
+ suppressMessages(library(lubridate , warn.conflicts = FALSE))
+ suppressMessages(library(dplyr , warn.conflicts = FALSE))
+ suppressMessages(library(ggplot2  , warn.conflicts = FALSE))
+ suppressMessages(library(tidyr , warn.conflicts = FALSE))
+```
+
+
+#### Reading Data, if na.string="" we will replace the field by NA and we will take 3 columns V1, V2, V9 columns coresponding to time, size, and time transmission  
+```{r}
+
 df = read.table('liglab2.log', sep=' ' , na.strings = ""  , header=F , fill = TRUE  )
 df = df %>% select(V1, V2, V9) 
-
+df[10:19 , ]
 ```
+As we can see we have cells in some rows with NA value 
 
-
-### Clean my dataframe droping all rows with at least one NA cell 
-
-
+#### Cleaning the dataframe by droping all rows with at least one cell with NA 
 ```{r}
-
-library(tidyr)
-line_NA  = apply(df , 1 , function(x) any(is.na(x)))
-#df[line_NA , ]
 df = df %>% drop_na()
-
+line_NA  = apply(df , 1 , function(x) any(is.na(x)))
+df[line_NA ,  ]
 ```
+As we can see above,after removing the rows that contains at least 1 cell with NA value, we tried to print and we had 0 rows contains NA, now we have our data cleaned.
 
-
-### Changing column names
-
+#### Changing column names for better View
 ```{r}
 colnames(df)=c('date' ,'size' , 'time' )
-
 ```
 
-### Convert time column to float
+#### Converting time and transmission time columns datatype to double
 ```{r}
 convertTime = function(time)
   gsub("[^0-9.]", "", time)
-
 df$time = as.numeric(sapply(df$time , convertTime))
+options(digits=16)
+df$date = as.double(sapply(df$date , convertTime))
+head(df)
+```
+option is used to allow the user to set and examine a variety of global “options” which affect the way in which R computes and displays its results. now we have types of time and data is double.
+Now our data is cleaned and ready to be contucted to analysis.
 
 
+```{r}
+plot(df$date , df$time , xlab="Time" ,ylab="time required for sending a message " ,  
+     xlim=c(1421761682.05217,1421770000.59017) ) 
+```
+this plot represent the time transmission on a period
 
-convertdate = function(date)
-  gsub("[^0-9.]", "", date)
+## taking a slot to better observation
+```{r}
+plot(df$date , df$time , xlab="Time" , ylab="time required for sending a message " ,
+     xlim=c(1421761682.05217,1421761892.59017) , ylim=c( 0,20 ) ) 
+```
+We can here observe that there is a sudden increase in the time required for sending a message . This shows that not only message size affect the the transsmission time of sending the ping packets. (I guess something related to network trafiic affecting the time required for sending a message).
 
-
-df$date = as.numeric(sapply(df$date , convertdate))
-
-
+```{r}
+#checking the message size in the slot of sudden increase
+#plot(df$date , df$size , xlab="Time" , ylab="msg size" , xlim=c(1421761720.05217,1421761725.59017) ) 
 ```
 
-
-### this is the time interms of the size of a msg
+#### Curve representing the time transmission in terms of message size
 ```{r}
 plot(df$size , df$time)
 ```
+As we can see in the figure once the packet size is greater that ~1500 the behaivoir of time transmissionis changed it start to take more time. here we have 2 cases behaves differently
+In a standard Ethernet network the MTU is 1500 bytes. The maximum packet size within the frame is 1472 bytes. If packet fragmentation is allowed, a packet can be up to 65,535 bytes. It would just be split into multiple frames and sent. If fragmentation isn’t allowed, packet size has to be controlled so that it doesn’t get too big to fit within the frame. 
+This is why we have larger time required for sending a message  when packet size is more that 1500(not only this factor but size has an effect on the transmssion time as we can see in the figure).
+
+```{r}
+ggplot(data = df, mapping = aes(x = size, y = time)) +
+    geom_point() + 
+    coord_cartesian(ylim=c(1, 5) , xlim=c(0 , 2000))
+```
+we can observe above that the message size actually have an effect on the transmission time, as message size increase transmission time increase. 
 
 
 
+#### Curve representing the time required for sending a message  in terms of size of a message, focued on range 0 --> 1500 of a message size 
+```{r}
+ plot(df$size, df$time, main ="time required for sending a message  in terms of message size < 1500"  ,
+      xlab="size", ylab="time required for sending a message ", xlim=c(0,1500)  , ylim = c(0 , 100))
+```
 
+
+#### Curve representing the time required for sending a message  in terms of size of a message, focued on range 1500 ---> 2000 of a message size 
+```{r}
+ plot(df$size, df$time, main ="time required for sending a message  in terms of message size > 1500",
+      xlab="size", ylab="time required for sending a message ", xlim=c(1450,2000) , ylim=c( 0, 150))
+```
+
+We can observe from here that there is 2 cases that should be taken into account, if message size is less than 1500 where we can see usually the mesasge takes time less than 25 ms while if msg size is greater that 1500 usually it takes time less than 100 ms
+
+
+
+#### we need to classify the data, a column that specifies the size if it is >1500 or less 
+```{r}
+checkingSize = function(size)
+  return(size > 1500)
+df$type = as.numeric(sapply(df$size , checkingSize))
+summary(df)
+```
+
+
+#### drawing the linear regression for messages size greater than 1500 
+```{r}
+data=df[df$type==1,]
+reg <- lm(data=df[df$type==1,],time~size)
+summary(reg)
+
+ggplot(data, aes(x=size, y=time))+ ggtitle("linear regression case of message size greater than 1500 ") +
+  labs(y="Time in (ms)", x = "message size (bytes)") +
+  geom_point(color='blue') +
+  geom_smooth(color='red' , method = "lm", se = FALSE)+
+  theme_bw() +  coord_cartesian(ylim=c(0,100))
+```
+As we can see in the figure T(S) = L + S/C + \(\epsilon\)  where L = 4.920748136138675  1/C = 0.002779466583026.
+The p-value for size is 0.040260 *. A small value means that size is probably an excellent addition to your model
+One measure very used to test how good the model is the coefficient of determination or R².  R² = 0.0002926837522856 which is so small and far from 1. This means that the model explains only 0.2% of the data variability which is really bad.
+#### drawing the linear regression for messages size less than 1500 
+```{r}
+
+data=df[df$type==0,]
+reg <- lm(data=df[df$type==0,],time~size)
+summary(reg)
+
+ggplot(data, aes(x=size, y=time)) +
+  labs(y="Time in (ms)", x = "message size (bytes)") +
+  ggtitle("linear regression case of message size less than 1500 ")+
+  geom_point(color='blue') +
+  geom_smooth(color='red' , method = "lm", se = FALSE)+
+  theme_bw() + coord_cartesian(ylim=c(0,50))
+
+
+
+```
+As we can see in the figure T(S) = L + S/C + \(\epsilon\)  where L = 3.124251115385e+00  1/C = 6.247748418994e-04
+Using Pr value we can see that 1.5546e-12 *** is a very small value that means thats probably size is probably an excellent addition to model. Also we can see that R-squared:  0.001479706997868 very low that means also that lm doesn't fit our data very well there is another factor that should be taken into consideration. (size is good but not the only one affecting the time transmission)
+
+Distribution of message sizes
+```{r}
+ggplot(df[], aes(x=size)) +   geom_histogram(binwidth=40 ,
+          color ="black" ,  fill="lightblue", alpha=1)+theme_minimal()
+
+
+```
+in this figure is just for having an overview over how message sizes are distributed.
+
+Distribution of Time
+```{r}
+ggplot(df, aes(x=time)) + 
+    labs(y="count", x = "transmission time") +
+  geom_histogram(binwidth=10 , color ="black" ,  fill="lightblue", alpha=0.5)+theme_minimal()
+
+
+```
+this figure counts how much time each transmission time happen, where  after this result I can see why is the linear regression line at the bottom, because the interval where time transmission is between 0 and 10 have a very high value in terms of others intervals. 
+## Quantile regression
+
+
+```{r}
+
+data=df[df$type==0,]
+rqfit1 <- rq(time ~ size, tau = 0.25,  data = data )
+rqfit2 <- rq(time ~ size, tau = 0.75,  data = data )
+
+summary(rqfit1)
+summary(rqfit2)
+anova(rqfit1 , rqfit2)
+```
+we can using anaova to see if there is a difference between using conditional quantile with values (0.25 , 0,75) and since 6.6613e-16 *** is extremly small and F value is big that means that there is a difference between these two (slops different)
 
 
 
 ```{r}
-library(ggplot2)
+q10 <- seq(0.05, 0.95, by = 0.1)
+ggplot(data, aes(x=size, y=time)) +
+  labs(y="Time in (ms)", x = "message size (bytes)") +
+  ggtitle("quantile regression case of message size less than 1500 ")+
+  geom_point(color='blue') +
+  geom_quantile( quantiles = q10 , color="red")+
 
-ggplot(df, aes(x=size, y=time)) + 
-    geom_point() +
-    theme_bw() 
+  coord_cartesian(ylim=c(0,2))
+
+
 ```
 
-
+Quantile regression has been proposed and used as a way to discover more useful predictive relationships between variables in cases where there is no relationship or only a weak relationship between the means of such variables.
+the tau option tells rq which conditional quantile we want. 
+We can specify a tau option which tells rq which conditional quantile we want. 
 
 
 
 ```{r}
-
- plot(df$size , df$time , xlim=c(0,1500))
+data3 =df[df$type==1,]
+rqfit1 <- rq(time ~ size, tau = 0.5,  data = data3 )
+summary(rqfit1)
+q10 <- seq(0.05, 0.95, by = 0.1)
+ggplot(data3, aes(x=size, y=time)) +
+  labs(y="Time in (ms)", x = "message size (bytes)") +
+  geom_point(color='blue') +
+  geom_quantile( quantiles = q10 , color="red")+
+  coord_cartesian(ylim=c(0,100) , xlim=c(1500 ,2000))
+     
 
 ```
+we can see an interesting results in the figure
 
+
+
+## Minimum Time Transmission Per Message Size
+
+now it is time to try another than mean regression, i will keep only the minimum time transmission for a message size, i will group by message size then take the minimum between the list of  values for this message size. 
 ```{r}
- plot(df$size , df$time , xlim=c(1000,1600))
+#data
+data =df
+data2 = data %>% group_by(size) %>% slice(which.min(time))
+
+
+
+
+reg <- lm(data=data2[data2$type==0,],time~size)
+summary(reg)
+
+ggplot(data2[data2$type==0,], aes(x=size, y=time)) +
+  labs(y="Time in (ms)", x = "message size (bytes)") +
+  ggtitle("linear regression case of message size less than 1500 ")+
+  geom_point(color='blue') +
+  geom_smooth(color='red' , method = "lm", se = FALSE)+
+  theme_bw() + coord_cartesian(ylim=c(0.9,1.5))
+
+reg <- lm(data=data2[data2$type==1,],time~size)
+summary(reg)
+
+ggplot(data2[data2$type==1,], aes(x=size, y=time)) +
+  labs(y="Time in (ms)", x = "message size (bytes)") +
+  ggtitle("linear regression case of message size greater than 1500 ")+
+  geom_point(color='blue') +
+  geom_smooth(color='red' , method = "lm", se = FALSE)+
+  theme_bw() + coord_cartesian(ylim=c(2,3))
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+as we can the results of the linear regression are very good, Adjusted R-squared it is way more better than before, and we can see that message size is an excellent addition to model.
