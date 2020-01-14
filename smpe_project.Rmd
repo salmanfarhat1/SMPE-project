@@ -1,8 +1,8 @@
 ---
 title: "Latency and capacity estimation for a network connection from asymmetric measurements"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-#### Libraries used
+### Libraries used
 ```{r}
  suppressMessages(library(stats  , warn.conflicts = FALSE))
  suppressMessages(library(SparseM  , warn.conflicts = FALSE))
@@ -22,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-#### Reading Data, if na.string="" we will replace the field by NA and we will take 3 columns V1, V2, V9 columns coresponding to time, size, and time transmission  
+### Reading Data, if na.string="" we will replace the field by NA and we will take 3 columns V1, V2, V9 columns coresponding to time, size, and time transmission  
 ```{r}
 
 df = read.table('liglab2.log', sep=' ' , na.strings = ""  , header=F , fill = TRUE  )
@@ -39,7 +39,7 @@ df[line_NA ,  ]
 ```
 As we can see above,after removing the rows that contains at least 1 cell with NA value, we tried to print and we had 0 rows contains NA, now we have our data cleaned.
 
-#### Changing column names for better View
+### Changing column names for better View
 ```{r}
 colnames(df)=c('date' ,'size' , 'time' )
 ```
@@ -63,7 +63,7 @@ plot(df$date , df$time , xlab="Time" ,ylab="time required for sending a message 
 ```
 this plot represent the time transmission on a period
 
-## taking a slot to better observation
+### taking a slot to better observation
 ```{r}
 plot(df$date , df$time , xlab="Time" , ylab="time required for sending a message " ,
      xlim=c(1421761682.05217,1421761892.59017) , ylim=c( 0,20 ) ) 
@@ -109,7 +109,7 @@ We can observe from here that there is 2 cases that should be taken into account
 
 
 
-#### we need to classify the data, a column that specifies the size if it is >1500 or less 
+#### We need to classify the data, a column that specifies the size if it is >1500 or less 
 ```{r}
 checkingSize = function(size)
   return(size > 1500)
@@ -118,7 +118,7 @@ summary(df)
 ```
 
 
-#### drawing the linear regression for messages size greater than 1500 
+### Drawing the linear regression for messages size greater than 1500 
 ```{r}
 data=df[df$type==1,]
 reg <- lm(data=df[df$type==1,],time~size)
@@ -133,7 +133,8 @@ ggplot(data, aes(x=size, y=time))+ ggtitle("linear regression case of message si
 As we can see in the figure T(S) = L + S/C + \(\epsilon\)  where L = 4.920748136138675  1/C = 0.002779466583026.
 The p-value for size is 0.040260 *. A small value means that size is probably an excellent addition to your model
 One measure very used to test how good the model is the coefficient of determination or R².  R² = 0.0002926837522856 which is so small and far from 1. This means that the model explains only 0.2% of the data variability which is really bad.
-#### drawing the linear regression for messages size less than 1500 
+
+### Drawing the linear regression for messages size less than 1500 
 ```{r}
 
 data=df[df$type==0,]
@@ -153,7 +154,7 @@ ggplot(data, aes(x=size, y=time)) +
 As we can see in the figure T(S) = L + S/C + \(\epsilon\)  where L = 3.124251115385e+00  1/C = 6.247748418994e-04
 Using Pr value we can see that 1.5546e-12 *** is a very small value that means thats probably size is probably an excellent addition to model. Also we can see that R-squared:  0.001479706997868 very low that means also that lm doesn't fit our data very well there is another factor that should be taken into consideration. (size is good but not the only one affecting the time transmission)
 
-Distribution of message sizes
+### Distribution of message sizes
 ```{r}
 ggplot(df[], aes(x=size)) +   geom_histogram(binwidth=40 ,
           color ="black" ,  fill="lightblue", alpha=1)+theme_minimal()
@@ -162,7 +163,7 @@ ggplot(df[], aes(x=size)) +   geom_histogram(binwidth=40 ,
 ```
 in this figure is just for having an overview over how message sizes are distributed.
 
-Distribution of Time
+### Distribution of Time
 ```{r}
 ggplot(df, aes(x=time)) + 
     labs(y="count", x = "transmission time") +
