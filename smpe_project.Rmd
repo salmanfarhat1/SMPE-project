@@ -1,8 +1,8 @@
 ---
 title: "Latency and capacity estimation for a network connection from asymmetric measurements"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
